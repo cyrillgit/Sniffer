@@ -6,10 +6,11 @@
 #include <unistd.h>
 #include <netinet/if_ether.h>
 #include <string>
+#include <netinet/ip.h>
 
-void parse_EthernetHeader(unsigned char *buffer, bool full_output_enable){
+void parse_EthernetHeader(struct ethhdr *eth, bool full_output_enable){
 
-    struct ethhdr *eth = (struct ethhdr *)buffer;
+    // struct ethhdr *eth = (struct ethhdr *)buffer;
 
     if(full_output_enable) {
         std::cout << "[ETH HDR] destination MAC: ";
@@ -25,5 +26,37 @@ void parse_EthernetHeader(unsigned char *buffer, bool full_output_enable){
         }
 
         std::cout<< ", protocol ID:" << std::dec << ntohs(eth->h_proto) << std::endl;
+    }
+}
+
+void parse_IP_Header(unsigned char *buffer, bool full_output_enable){
+
+    struct iphdr *ip = (struct iphdr *)buffer;
+    uint32_t saddr = ntohl(ip->saddr);
+    uint32_t daddr = ntohl(ip->daddr);
+
+    if(full_output_enable) {
+        std::cout << "[IP HDR]: ";
+
+        std::cout << "src IP: "
+        << ((saddr >> 24) & 0xFF)
+        << "." << ((saddr >> 16) & 0xFF)
+        << "." << ((saddr >> 8) & 0xFF)
+        << "." << (saddr && 0xFF);
+
+        std::cout << ", dest IP: "
+        << ((daddr >> 24) & 0xFF)
+        << "." << ((daddr >> 16) & 0xFF)
+        << "." << ((daddr >> 8) & 0xFF)
+        << "." << (daddr && 0xFF);
+
+        std::cout << ", protocol: "
+        << (uint16_t)ip->protocol;
+        // TODO: make better protocol output
+
+        // std::cout << ", ttl: "
+        // << (uint16_t)ip->ttl;
+
+        std::cout << std::endl;
     }
 }

@@ -28,8 +28,7 @@ int main(int argc, char* argv[]) {
 
     // AF_PACKET - низкий уровень, видим заголовки Ethernet
     // SOCK_RAW - сырой сокет
-    // htons(ETH_P_ALL) - ловим все протоколы (IP, ARP и т.д.)
-    int sock_raw = socket(AF_PACKET, SOCK_RAW, htons(3)); // 3 - это ETH_P_ALL
+    int sock_raw = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 
     if (sock_raw < 0) {
         perror("Socket Error");
@@ -49,7 +48,21 @@ int main(int argc, char* argv[]) {
         }
         std::cout << "Packet size: " << std::dec << data_size << " bytes" << std::endl;
 
-        parse_EthernetHeader(buffer, full_output_enable);
+        struct ethhdr *ethernet_header_address = (struct ethhdr *)buffer;
+        parse_EthernetHeader(ethernet_header_address, full_output_enable);
+
+        unsigned char* ip_header_address = buffer + sizeof(struct ethhdr);
+        uint16_t protocol = ntohs(ethernet_header_address->h_proto); 
+        if (protocol == ETH_P_IP) { 
+            // Если это IPv4 (0x0800), вызываем парсер L3
+            parse_IP_Header(ip_header_address, full_output_enable);
+        } else if (protocol == ETH_P_ARP) {
+            std::cout << "[ARP] This is an ARP packet (skipped)" << std::endl;
+        } else if (protocol == ETH_P_IPV6) {
+            std::cout << "[IPv6] This is IPv6 (parser not implemented yet)" << std::endl;
+        } else {
+            std::cout << "[Unknown] Protocol ID: 0x" << std::hex << protocol << std::endl;
+        }
         
         num_of_packets_i--;
     } while(num_of_packets_i > 0);
