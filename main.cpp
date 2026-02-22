@@ -1,4 +1,5 @@
 // main.cpp
+#include <string>
 #include <iostream>
 #include <iomanip>
 #include <sys/socket.h>
@@ -6,7 +7,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <netinet/if_ether.h>
-#include <string>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
 
 #include "functions.h"
 
@@ -51,19 +53,29 @@ int main(int argc, char* argv[]) {
         struct ethhdr *ethernet_header_address = (struct ethhdr *)buffer;
         parse_EthernetHeader(ethernet_header_address, full_output_enable);
 
-        unsigned char* ip_header_address = buffer + sizeof(struct ethhdr);
-        uint16_t protocol = ntohs(ethernet_header_address->h_proto); 
-        if (protocol == ETH_P_IP) { 
+        struct iphdr* ip_header_address = (struct iphdr *)(buffer + sizeof(struct ethhdr));
+        uint16_t eth_protocol = ntohs(ethernet_header_address->h_proto); 
+        if (eth_protocol == ETH_P_IP) { 
             // Если это IPv4 (0x0800), вызываем парсер L3
             parse_IP_Header(ip_header_address, full_output_enable);
-        } else if (protocol == ETH_P_ARP) {
+
+            uint16_t ip_protocol = (uint16_t)ip_header_address->protocol;
+            if (ip_protocol == IPPROTO_TCP) {
+                // std::cout << "[TCP]" << std::endl;
+                struct tcphdr *tcp_header_address = (struct tcphdr*)((char*)ip_header_address + sizeof(struct iphdr));
+                parse_TCP_Header(tcp_header_address, full_output_enable);
+            } else if (ip_protocol == IPPROTO_UDP) {
+                std::cout << "[UDP]" << std::endl;
+            }
+            
+        } else if (eth_protocol == ETH_P_ARP) {
             std::cout << "[ARP] This is an ARP packet (skipped)" << std::endl;
-        } else if (protocol == ETH_P_IPV6) {
+        } else if (eth_protocol == ETH_P_IPV6) {
             std::cout << "[IPv6] This is IPv6 (parser not implemented yet)" << std::endl;
         } else {
-            std::cout << "[Unknown] Protocol ID: 0x" << std::hex << protocol << std::endl;
+            std::cout << "[Unknown] Protocol ID: 0x" << std::hex << eth_protocol << std::endl;
         }
-        
+      
         num_of_packets_i--;
     } while(num_of_packets_i > 0);
 
